@@ -250,7 +250,12 @@ def process_pdf_file(file_path, output_path):
     """
     Processes a pdf file to extract the required fields and saves it to a excel file.
     """
-    file_name = file_path.split("/")[-1].strip()
+    if "/" in file_path:
+        file_name = file_path.split("/")[-1].strip()
+    elif "\\" in file_path:
+        file_name = file_path.split("\\")[-1].strip()
+    sheet_name = file_name.replace(".pdf", "")[:31]
+
     print(f"Found {file_name}!")
     print("---------------------------")
 
@@ -262,7 +267,9 @@ def process_pdf_file(file_path, output_path):
         df = extract(pdf_text, file_path)
 
         print("Saving to output.xlsx...")
-        save_excel(df, output_path, file_name[:31])
+        save_excel(df, output_path, sheet_name)
+    else:
+        print("Error: Empty File!")
 
 
 if __name__ == "__main__":
@@ -286,14 +293,26 @@ if __name__ == "__main__":
 
         # If it's a single file
         if os.path.isfile(input_path):
-            with pd.ExcelWriter(output_path, engine="xlsxwriter") as writer:
-                process_pdf_file(input_path, output_path)
+            try:
+                with pd.ExcelWriter(output_path, engine="xlsxwriter") as writer:
+                    process_pdf_file(input_path, output_path)
+            except PermissionError:
+                print(f"Error: Could not save the file to '{output_path}'.")
+                print("Please make sure the file is not open and you have the necessary permissions.")
+            except Exception as e:
+                print(f"An unexpected error occurred: {e}")
 
         # If it's a directory with multiple files
         elif os.path.isdir(input_path):
             file_paths = os.listdir(input_path)
-            with pd.ExcelWriter(output_path, engine="xlsxwriter") as writer:
-                for file_path in file_paths:
-                    process_pdf_file(os.path.join(input_path, file_path), output_path)
+            try:
+                with pd.ExcelWriter(output_path, engine="xlsxwriter") as writer:
+                    for file_path in file_paths:
+                        process_pdf_file(os.path.join(input_path, file_path), output_path)
+            except PermissionError:
+                print(f"Error: Could not save the file to '{output_path}'.")
+                print("Please make sure the file is not open and you have the necessary permissions.")
+            except Exception as e:
+                print(f"An unexpected error occurred: {e}")
     else:
         print("Invalid: The path does not exist.")
