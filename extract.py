@@ -28,56 +28,51 @@ def slice_text(text, begining="", ending=""):
     return text.split(begining)[1].strip().split(ending)[0].strip()
 
 
-def extract_fields(text, file_path):
+def extract_field(field_indetifier, text, file_path):
     """
-    Extracts the fields from given text and returns a pandas dataframe.
+    Extracts the static field from given text.
     """
-    # Extract all repeating fields:
-    # ----------------------------
     try:
-        order_no = text.split("Order No:")[1].strip().split(" ")[0].strip()
-    except:
-        print(f"Couldn't extract Order No. from {file_path}")
-        order_no = "N/A"
+        value = text.split(field_indetifier)[1].strip().split("\n")[0].strip()
 
-    try:
-        product_description = (
-            text.split("Product Description:")[1].strip().split("\n")[0].strip()
-        )
+        # Handle exceptional fields
+        if field_indetifier == "Order No:":
+            value = text.split(field_indetifier)[1].strip().split(" ")[0].strip()
+        elif field_indetifier == "No of Pieces:":
+            value = int(value)
     except:
-        print(f"Couldn't extract Product Description from {file_path}")
-        product_description = "N/A"
+        print(f"Couldn't extract {field_indetifier} from {file_path}")
+        value = "N/A"
+    return value
 
-    try:
-        season = text.split("Season:")[1].strip().split("\n")[0].strip()
-    except:
-        print(f"Couldn't extract Season from {file_path}")
-        season = "N/A"
 
-    try:
-        type_of_construction = (
-            text.split("Type of Construction:")[1].strip().split("\n")[0].strip()
-        )
-    except:
-        print(f"Couldn't extract Type of Construction from {file_path}")
-        type_of_construction = "N/A"
+def extract_static_fields(text, file_path):
+    """
+    Extracts the static fields from given text.
+    """
+    fields = [
+        ("order_no", "Order No:"),
+        ("product_description", "Product Description:"),
+        ("season", "Season:"),
+        ("type_of_construction", "Type of Construction:"),
+        ("no_of_pieces", "No of Pieces:"),
+        ("sales_mode", "Sales Mode:"),
+        ("order_no", "Order No:"),
+        ("order_no", "Order No:"),
+        ("order_no", "Order No:"),
+        ("order_no", "Order No:"),
+    ]
+    static_fields = {}
+    for field_name, field_indetifier in fields:
+        static_fields[field_name] = extract_field(field_indetifier, text, file_path)
 
-    try:
-        no_of_pieces = int(
-            text.split("No of Pieces:")[1].strip().split("\n")[0].strip()
-        )
-    except:
-        print(f"Couldn't extract No of Pieces from {file_path}")
-        no_of_pieces = "N/A"
+    return static_fields
 
-    try:
-        sales_mode = text.split("Sales Mode:")[1].strip().split("\n")[0].strip()
-    except:
-        print(f"Couldn't extract Sales Mode from {file_path}")
-        sales_mode = "N/A"
 
-    # Extract all country codes with their Invoice Average Price:
-    # -------------------------
+def extract_country_codes_with_prices(text):
+    """
+    Extract all country codes with their Invoice Average Prices.
+    """
     try:
         # 1. Find the text slice
         text_slice = slice_text(
@@ -103,14 +98,18 @@ def extract_fields(text, file_path):
                 [{"code": code.strip(), "price": price} for code in codes.split(", ")]
             )
     except:
-        print("!!!!!!!!!!!!!!!!!!")
         print(
             f"Couldn't extract Country Codes with their Invoice Average Prices from {file_path}"
         )
-        print("!!!!!!!!!!!!!!!!!!")
         country_codes_with_price = []
 
-    # Extract all country codes with their Time of Delivery
+    return country_codes_with_price
+
+
+def extract_country_codes_with_delivery_times(text):
+    """
+    Extract all country codes with their Times of Delivery.
+    """
     try:
         # 1. Find the text slice
         text_slice = slice_text(
@@ -151,12 +150,21 @@ def extract_fields(text, file_path):
                 for code in temp_codes:
                     country_codes_with_time.append((formatted_date, code))
     except:
-        print("!!!!!!!!!!!!!!!!!!")
         print(
             f"Couldn't extract Country Codes with their Time of Delivery from {file_path}"
         )
-        print("!!!!!!!!!!!!!!!!!!")
         country_codes_with_time = []
+
+    return country_codes_with_time
+
+
+def extract(text, file_path):
+    """
+    Extracts the fields from given text, creates & returns a pandas dataframe.
+    """
+    static_fields = extract_static_fields(text, file_path)
+    country_codes_with_price = extract_country_codes_with_prices(text)
+    country_codes_with_delivery_times = extract_country_codes_with_delivery_times(text)
 
     data = {
         "Order No": [],
@@ -179,7 +187,7 @@ def extract_fields(text, file_path):
             time_of_delivery = list(
                 filter(
                     lambda x: x[1] == country_code_with_price["code"],
-                    country_codes_with_time,
+                    country_codes_with_delivery_times,
                 )
             )[0][0]
         except:
@@ -187,15 +195,14 @@ def extract_fields(text, file_path):
         data["Time of Delivery"].append(time_of_delivery)
 
         # Static fields
-        data["Order No"].append(order_no)
-        data["Product Description"].append(product_description)
-        data["Season"].append(season)
-        data["Type of Construction"].append(type_of_construction)
-        data["No. of Pieces"].append(no_of_pieces)
-        data["Sales Mode"].append(sales_mode)
+        data["Order No"].append(static_fields["order_no"])
+        data["Product Description"].append(static_fields["product_description"])
+        data["Season"].append(static_fields["season"])
+        data["Type of Construction"].append(static_fields["type_of_construction"])
+        data["No. of Pieces"].append(static_fields["no_of_pieces"])
+        data["Sales Mode"].append(static_fields["sales_mode"])
 
-    df = pd.DataFrame(data)
-    return df
+    return pd.DataFrame(data)
 
 
 def save_excel(df, file_name, sheet_name, font_size=12):
@@ -236,7 +243,7 @@ def save_excel(df, file_name, sheet_name, font_size=12):
         print(f"Successfully saved and formatted {file_name}.\n")
 
     except Exception as e:
-        print(f"An error occurred: {e}\n")
+        print(f"An error occurred during excel file saving: {e}\n")
 
 
 def process_pdf_file(file_path, output_path):
@@ -252,40 +259,41 @@ def process_pdf_file(file_path, output_path):
 
     if pdf_text:
         print("Extracting required fields...")
-        df = extract_fields(pdf_text, file_path)
+        df = extract(pdf_text, file_path)
 
         print("Saving to output.xlsx...")
         save_excel(df, output_path, file_name[:31])
 
 
-# Check if a file path argument was provided
-if len(sys.argv) < 2:
-    print("Error: No file path provided.")
-    print('Usage: python extract.py "/path/to/your/pdf/file"')
-    sys.exit(1)
+if __name__ == "__main__":
+    """
+    Main function to handle command-line arguments and process files.
+    """
+    if len(sys.argv) < 2:
+        print("Error: No file path provided.")
+        print(
+            'Usage: python extract.py "/path/to/your/pdf/file_or_directory" [output.xlsx]'
+        )
+        sys.exit(1)
 
-# The first command-line argument is the script name itself,
-# so the second argument (index 1) is the file path.
-file_path = sys.argv[1]
-try:
-    output_path = sys.argv[2]
-except:
+    input_path = sys.argv[1]
     output_path = "output.xlsx"
+    if len(sys.argv) > 2:
+        output_path = sys.argv[2]
 
+    if os.path.exists(input_path):
+        print("Valid: The path exists.")
 
-if os.path.exists(file_path):
-    print("Valid: The path exists.")
+        # If it's a single file
+        if os.path.isfile(input_path):
+            with pd.ExcelWriter(output_path, engine="xlsxwriter") as writer:
+                process_pdf_file(input_path, output_path)
 
-    # If it's a single file
-    if os.path.isfile(file_path):
-        with pd.ExcelWriter(output_path, engine="xlsxwriter") as writer:
-            process_pdf_file(file_path, output_path)
-
-    # If it's a directory with multiple files
-    elif os.path.isdir(file_path):
-        files_inside = os.listdir(file_path)
-        with pd.ExcelWriter(output_path, engine="xlsxwriter") as writer:
-            for path in files_inside:
-                process_pdf_file(os.path.join(file_path, path), output_path)
-else:
-    print("Invalid: The path does not exist.")
+        # If it's a directory with multiple files
+        elif os.path.isdir(input_path):
+            file_paths = os.listdir(input_path)
+            with pd.ExcelWriter(output_path, engine="xlsxwriter") as writer:
+                for file_path in file_paths:
+                    process_pdf_file(os.path.join(input_path, file_path), output_path)
+    else:
+        print("Invalid: The path does not exist.")
