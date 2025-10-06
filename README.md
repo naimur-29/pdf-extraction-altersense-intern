@@ -77,6 +77,6 @@ python extract.py [input_path] [output_path]
 
 ## ❗ Important Notes
 
-  - The script is designed to extract data from a specific PDF layout. It may not work as expected on other PDF formats.
+  - The script is designed to extract data from a specific PDF layout. It may not work as expected on other PDF structures.
   - The output Excel file is automatically formatted with column headers and adjusted column widths for better readability.
   - Errors encountered during extraction will be printed to the console.
